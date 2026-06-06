@@ -70,6 +70,8 @@ export async function withdraw(req, res, next) {
 }
 
 export async function transfer(req, res, next) {
+  await Promise.all([Transfer.createCollection(), Transaction.createCollection()]);
+
   const session = await mongoose.startSession();
   session.startTransaction();
 
@@ -81,7 +83,7 @@ export async function transfer(req, res, next) {
       throw notFound('Sender account not found');
     }
     if (!receiver) {
-      throw notFound('Receiver account not found');
+      throw notFound('Receiver account is not registered');
     }
     if (sender._id.equals(receiver._id)) {
       throw new HttpError(400, 'Sender and receiver accounts must differ');
@@ -103,7 +105,7 @@ export async function transfer(req, res, next) {
 
     const [transferRecord] = await Transfer.create(
       [{ senderAccount: sender._id, receiverAccount: receiver._id, amount: req.body.amount }],
-      { session }
+      { ordered: true, session }
     );
 
     await Transaction.create(
@@ -121,12 +123,20 @@ export async function transfer(req, res, next) {
           description: `Transfer from ${sender.accountNumber}`
         }
       ],
-      { session }
+      { ordered: true, session }
     );
 
     await session.commitTransaction();
     await writeAudit({ userId: req.user._id, action: 'Transfer', ipAddress: req.ip });
-    res.status(201).json({ transfer: transferRecord, account: sender });
+    res.status(201).json({
+      transfer: transferRecord,
+      account: sender,
+      receiver: {
+        accountNumber: receiver.accountNumber,
+        balance: receiver.balance,
+        status: receiver.status
+      }
+    });
   } catch (error) {
     await session.abortTransaction();
     next(error);

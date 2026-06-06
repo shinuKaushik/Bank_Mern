@@ -40,4 +40,40 @@ describe('transactions', () => {
 
     expect(response.status).toBe(403);
   });
+
+  test('transfers funds only to a registered receiver account', async () => {
+    const sender = await registerCustomer('sender@example.com');
+    const receiver = await registerCustomer('receiver@example.com');
+
+    await request(app)
+      .post('/api/transactions/deposit')
+      .set('Authorization', `Bearer ${sender.token}`)
+      .send({ amount: 750 });
+
+    const transfer = await request(app)
+      .post('/api/transactions/transfer')
+      .set('Authorization', `Bearer ${sender.token}`)
+      .send({
+        receiverAccount: receiver.account.accountNumber,
+        amount: 250,
+        pin: '1234'
+      });
+
+    expect(transfer.status).toBe(201);
+    expect(transfer.body.account.balance).toBe(500);
+    expect(transfer.body.receiver.accountNumber).toBe(receiver.account.accountNumber);
+    expect(transfer.body.receiver.balance).toBe(250);
+
+    const missingReceiver = await request(app)
+      .post('/api/transactions/transfer')
+      .set('Authorization', `Bearer ${sender.token}`)
+      .send({
+        receiverAccount: '00000000',
+        amount: 50,
+        pin: '1234'
+      });
+
+    expect(missingReceiver.status).toBe(404);
+    expect(missingReceiver.body.message).toBe('Receiver account is not registered');
+  });
 });
