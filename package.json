@@ -1,0 +1,15 @@
+{
+  "name": "secure-banking-management-system",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Role-based MERN banking platform with secure transaction processing.",
+  "scripts": {
+    "install:all": "npm install --prefix server && npm install --prefix client",
+    "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "test": "npm test --prefix server",
+    "lint": "npm run lint --prefix client"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
